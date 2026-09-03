@@ -18,24 +18,34 @@ Prowlarr and SABnzbd reach the internet by different routes.
 
 ## Why that causes account bans
 
-Consider a normal split-tunnel setup: a VPN is active, but Prowlarr is excluded so the
-indexer sees the subscriber's real home address, which is what many private indexers
-expect. SABnzbd stays inside the tunnel.
+Two programs therefore contact the indexer for a single grab — Prowlarr for the search
+and grab request, SABnzbd for the file. Whenever they egress differently, the indexer
+sees this:
 
 ```text
-t+0.0s   Prowlarr    ── search, grab ──▶  Indexer      home IP
+t+0.0s   Prowlarr    ── search, grab ──▶  Indexer      IP A
 t+0.1s   Prowlarr    ── addurl(URL)  ──▶  SABnzbd
-t+0.4s   SABnzbd     ── GET nzb      ──▶  Indexer      VPN exit IP
+t+0.4s   SABnzbd     ── GET nzb      ──▶  Indexer      IP B
 ```
 
-From the indexer's side, one account authenticated twice within a second from two
-unrelated public addresses, one of them a known datacenter range. That is the exact
-signature of a shared or resold account, and on many private indexers it is grounds for
-suspension.
+One account authenticated twice within a second from two unrelated public addresses.
+That is the signature of a shared or resold account, and on many private indexers it is
+grounds for suspension.
 
-The user has misconfigured nothing. The split simply lands in the one place it cannot
-help: the request that must be re-routed is the one SABnzbd issues, and Prowlarr offers
-no way to influence it. Prowlarr's contract with SAB is "here is a URL."
+Two deployments produce it routinely:
+
+**Home machine with split tunneling.** A VPN is active but Prowlarr is excluded, so the
+indexer sees the subscriber's real address, which is what many private indexers expect.
+SABnzbd stays inside the tunnel and fetches the NZB from a datacenter exit.
+
+**VPS or self-hosted server behind a proxy.** Prowlarr's indexer API traffic is directed
+through a chosen proxy or secondary address, while SABnzbd fetches over the box's
+default route. The grab arrives from an address the searches never used.
+
+In both cases nothing is misconfigured. The split lands in the one place it cannot help:
+the request that must be re-routed is the one SABnzbd issues, and Prowlarr offers no way
+to influence it. Prowlarr's contract with a download client is "here is a URL", which is
+also why the same problem applies to any downloader given a URL instead of a file.
 
 ## The fix
 
@@ -50,9 +60,14 @@ Prowlarr ──addurl(URL)──▶ NZB Relay ──GET nzb──▶ Indexer
 ```
 
 SAB is never told the indexer URL, so it never contacts the indexer for the handoff.
-Exactly one process talks to the indexer for the NZB, and the user controls its route by
-excluding one small app from the tunnel — a rule they can actually express in a VPN
-client, unlike "SABnzbd, but only for this one request."
+Exactly one process talks to the indexer for the NZB, and its route is the user's to
+choose: exclude one small app from a tunnel, or give it the same egress as Prowlarr on a
+server. Both are rules a VPN client or a firewall can actually express, unlike "SABnzbd,
+but only for this one request."
+
+The property the relay establishes is that the NZB grab shares an address with the
+searches that preceded it, because the process performing the grab is one the user can
+point wherever Prowlarr already points.
 
 Prowlarr requires no modification. It is configured with an ordinary SABnzbd download
 client pointed at `127.0.0.1:9788` with a blank URL base, and it cannot tell the

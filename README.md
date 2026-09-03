@@ -21,22 +21,32 @@ Prowlarr does not hand SABnzbd an NZB file. It calls SABnzbd's `mode=addurl` API
 passes the **indexer download URL**, and SABnzbd then contacts the indexer itself to
 fetch the NZB.
 
-That is fine until Prowlarr and SABnzbd leave your network by different routes — which
-is exactly what happens with a VPN and split tunneling. Say you route Prowlarr outside
-the tunnel so your indexer sees your home address, while SABnzbd runs inside the tunnel:
+So two different programs talk to your indexer for a single grab: Prowlarr for the
+search and the grab request, SABnzbd for the file. Whenever those two leave the network
+by different routes, your indexer sees one account authenticate from two public
+addresses seconds apart:
 
 ```text
-1. Prowlarr search / grab   ──▶ Indexer     from your home IP
+1. Prowlarr search / grab   ──▶ Indexer     from Prowlarr's IP
 2. Prowlarr addurl(URL)     ──▶ SABnzbd
-3. SABnzbd fetches the NZB  ──▶ Indexer     from your VPN IP
+3. SABnzbd fetches the NZB  ──▶ Indexer     from SABnzbd's IP
 ```
 
-One grab, one account, two public IP addresses, seconds apart. To an indexer that
-pattern looks like a shared or resold account, and on many private indexers that is a
-bannable offence. You did nothing wrong — the split simply falls in the worst possible
-place, because the one request you cannot redirect is the one SABnzbd makes.
+That pattern is the signature of a shared or resold account, and on many private
+indexers it is grounds for suspension. Two common setups produce it:
 
-Nothing in Prowlarr fixes this. It only knows how to hand SAB a URL.
+**Home machine with a VPN and split tunneling.** You exclude Prowlarr from the tunnel so
+your indexer sees your real subscriber address, while SABnzbd stays inside the tunnel
+and fetches the NZB from a datacenter exit.
+
+**VPS or self-hosted server behind a proxy.** You route Prowlarr's indexer API calls
+through a specific proxy or egress address, but SABnzbd fetches the NZB over the box's
+default route — so the grab arrives from an address the searches never used.
+
+In both cases you configured nothing wrong. The split falls in the one place you cannot
+reach, because the request that needs redirecting is the one SABnzbd issues, and
+Prowlarr's only contract with a download client is "here is a URL." The same problem
+applies to any downloader handed a URL rather than a file.
 
 ## How it fixes it
 
@@ -51,8 +61,13 @@ When an `addurl` request arrives, the relay:
 4. saves the file to a local archive; and
 5. uploads the bytes to your real SABnzbd using `mode=addfile`.
 
-SABnzbd never receives the indexer URL, so it never contacts your indexer. Only NZB
-Relay does — and you control its route by excluding one small app from your VPN tunnel.
+SABnzbd never receives the indexer URL, so it never contacts your indexer. The grab is
+performed by NZB Relay, over NZB Relay's route — so route the relay the way you route
+Prowlarr and both halves of a grab come from one address.
+
+That is the whole point: the downloader stops using its own IP to fetch NZBs. Instead of
+trying to redirect one specific SABnzbd request, which is not something a VPN client or
+a proxy rule can express, you point one small process wherever you want.
 
 Every other SAB API call — version, queue, history — passes straight through, so
 Prowlarr's connection test and download monitoring keep working normally.
@@ -108,12 +123,16 @@ Then open <http://127.0.0.1:9788>.
 click **Save settings**, then **Test SABnzbd**. A local address like `127.0.0.1:8080`
 is fine — the scheme is added for you.
 
-**2. Exclude NZB Relay from your VPN tunnel.** This is the step that determines which
-address your indexer sees. Consult your VPN client's split-tunnel settings.
+**2. Route the relay like Prowlarr.** This is the step that determines which address
+your indexer sees. On a home machine that usually means excluding NZB Relay from your
+VPN's tunnel alongside Prowlarr. On a server it means giving the relay the same egress
+as Prowlarr's indexer traffic. If the relay and Prowlarr already share a host and a
+default route, this is already true.
 
-**3. Confirm the route.** Click **Check IP** before connecting your VPN, then again
-after. Every click performs a fresh, uncached lookup from inside the app. If the
-address does not change when you connect the VPN, the exclusion is working.
+**3. Confirm the route.** Click **Check IP**. Every click performs a fresh, uncached
+lookup from inside the app, so the address shown is the one the relay would actually use
+right now. Compare it before and after connecting your VPN, or against the address your
+indexer's login history records for Prowlarr's searches.
 
 **4. Point Prowlarr at the relay.** Add or edit a SABnzbd download client:
 
@@ -132,6 +151,24 @@ NZB Relay.
 **5. Test it.** Run Prowlarr's connection test, then do one manual grab. The relay's
 activity log should show `uploaded` along with the indexer host, filename, byte count,
 the egress IP used for that grab, and the SAB job ID.
+
+## Where it can run
+
+The relay binds `127.0.0.1` and cannot be reached from another machine. Prowlarr and the
+relay therefore have to share a host.
+
+**macOS desktop** is the supported setup and what release builds target.
+
+**Headless on a server** works today with `npm start`, which runs the same relay on plain
+Node without the Electron shell. This suits a VPS or self-hosted box where Prowlarr,
+NZB Relay, and SABnzbd all live on one machine. Note that headless mode has no Keychain,
+so the SAB key is kept in an owner-only config file rather than encrypted storage.
+
+**Containers are not supported yet.** A Docker image is planned but deliberately not
+built by relaxing the localhost bind — a container deployment needs its own network and
+secret handling design, and the egress check has to run inside the container, because
+the container's network namespace rather than a host routing rule decides where the grab
+comes from.
 
 ## Saved NZB inbox
 
