@@ -1,0 +1,54 @@
+{
+  "name": "nzb-relay",
+  "version": "0.2.2",
+  "description": "Fetch NZBs locally before uploading them to SABnzbd.",
+  "type": "module",
+  "main": "src/electron-main.mjs",
+  "scripts": {
+    "start": "node src/main.mjs",
+    "test": "node --test 'test/**/*.test.mjs'",
+    "electron": "electron .",
+    "dist:mac": "electron-builder --mac dmg zip --arm64 --publish never",
+    "dist": "electron-builder"
+  },
+  "keywords": [
+    "usenet",
+    "nzb",
+    "sabnzbd",
+    "prowlarr"
+  ],
+  "author": "NZB Relay contributors",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "electron": "44.1.1",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "community.nzbrelay.app",
+    "productName": "NZB Relay",
+    "afterPack": "build/after-pack.cjs",
+    "asar": true,
+    "files": [
+      "src/**/*",
+      "package.json",
+      "LICENSE"
+    ],
+    "mac": {
+      "identity": null,
+      "icon": "build/icon.png",
+      "category": "public.app-category.utilities",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "linux": {
+      "icon": "build/icon.png"
+    }
+  }
+}
