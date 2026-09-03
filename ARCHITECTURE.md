@@ -1,7 +1,7 @@
 # Architecture
 
 Why NZB Relay exists, how a request moves through it, and which decisions are
-deliberate. [README.md](../README.md) is the user guide and [CLAUDE.md](../CLAUDE.md) is
+deliberate. [README.md](README.md) is the user guide and [CLAUDE.md](CLAUDE.md) is
 the contributor contract; this document is the reasoning behind both.
 
 ## The premise
@@ -147,7 +147,7 @@ or a Usenet account. The real SAB key is stored separately, encrypted through El
 substituted only on outbound requests to SAB.
 
 The localhost bind is a security boundary rather than a deployment default. Two known
-weaknesses follow from it, both recorded in [SECURITY.md](../SECURITY.md): anyone holding
+weaknesses follow from it, both recorded in [SECURITY.md](SECURITY.md): anyone holding
 the bridge key can ask the relay to fetch an arbitrary HTTP(S) URL, and the read-only
 admin routes are reachable by other local processes without the UI header. Browser
 same-origin rules prevent a remote site from reading the second. Neither is solved well

@@ -3,7 +3,7 @@
 Operating notes for anyone — human or AI — working in this repository.
 
 Read this before changing code. [README.md](README.md) explains what the app does for
-users; [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) explains why it is built this way.
+users; [ARCHITECTURE.md](ARCHITECTURE.md) explains why it is built this way.
 This file covers how to work here without breaking it.
 
 ## Orientation

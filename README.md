@@ -230,7 +230,7 @@ The relay uses only Node built-ins — no runtime dependencies. Integration test
 mock indexer and SAB servers and assert byte-for-byte upload behavior offline.
 
 Before changing code, read [CLAUDE.md](CLAUDE.md) for the behavioral invariants this app
-depends on, and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design reasoning.
+depends on, and [ARCHITECTURE.md](ARCHITECTURE.md) for the design reasoning.
 
 ```text
 src/relay-server.mjs    SAB-compatible endpoint, admin routes, addurl interception
