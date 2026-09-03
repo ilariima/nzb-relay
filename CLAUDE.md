@@ -83,6 +83,13 @@ explicit decision from the maintainer.
 12. **The bridge key and the real SAB key stay separate**, compared with
     `timingSafeEqual` on equal-length buffers.
 
+13. **A non-API response from SAB counts as a failure, not a success.**
+    `sabAccepted()` rejects an HTML body outright, because SAB serves its web
+    interface with HTTP 200 when the URL base is wrong. The permissive fallback
+    that follows exists only for non-JSON output modes such as `output=xml`; do
+    not simplify it into treating every unparseable body as success, which
+    reported grabs as uploaded that SAB never received.
+
 There are regression tests for most of these. If you change behavior around one and
 the tests still pass, assume the test is inadequate rather than the invariant obsolete.
 
