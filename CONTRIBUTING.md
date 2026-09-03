@@ -17,24 +17,27 @@ never commit account credentials or captured download URLs.
 
 ## Design constraints
 
-- Keep the service bound to loopback.
-- Preserve the separation between the public bridge key and the real SAB key.
-- Run the egress guard before any indexer request.
-- Bound network response sizes and durations.
-- Do not write NZB contents or source URLs containing tokens to logs.
-- Keep ordinary SAB API modes compatible so Prowlarr's Test button and monitoring
-  continue to work.
+[CLAUDE.md](CLAUDE.md) lists the behavioral invariants this project depends on, with the
+reasoning behind each. Read it before changing request handling, storage, or anything
+touching keys or egress. It is the single source for those rules — this file
+deliberately does not restate them, so the two cannot drift apart.
+
+[ARCHITECTURE.md](ARCHITECTURE.md) explains why the design is shaped the way it is,
+including the decisions most likely to be undone by an otherwise reasonable refactor.
 
 Before opening a pull request, include the platform, macOS version, Prowlarr version,
 SABnzbd version, expected behavior, and sanitized relay activity entry.
 
 ## Releases
 
-The public release workflow is tag-driven. Keep the version in `package.json` and
-`package-lock.json` aligned, commit the release, and push an annotated tag such as
-`v0.2.1`. GitHub Actions runs the test and audit suites, builds on an Apple Silicon
-macOS runner, applies and verifies an ad-hoc signature, produces checksums, and
-attaches the DMG and ZIP to the GitHub release.
+The public release workflow is tag-driven. Bump `version` in `package.json` — the only
+place it is defined — and run `npm install` so `package-lock.json` follows. Move the
+changelog's `Unreleased` section under the new heading, merge, then push an annotated
+tag of the form `vX.Y.Z`.
+
+GitHub Actions runs the test and audit suites, builds on an Apple Silicon macOS runner,
+applies and verifies an ad-hoc signature, produces checksums, and attaches the DMG and
+ZIP to the GitHub release.
 
 The ad-hoc signature is the deliberately free distribution route. It prevents users
 from having to run `codesign` locally, but it is not a Developer ID signature and

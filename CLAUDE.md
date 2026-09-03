@@ -21,7 +21,7 @@ touch SAB's NNTP traffic.
 
 ```bash
 npm ci                 # install (lockfile-exact)
-npm test               # 14 tests, no network or accounts needed
+npm test               # 15 tests, no network or accounts needed
 npm audit --audit-level=high
 npm start              # headless relay on 127.0.0.1:9788
 npm run electron       # desktop app

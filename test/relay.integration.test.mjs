@@ -208,6 +208,42 @@ describe('Prowlarr-to-SAB relay', () => {
     assert.equal(archive.items[0].submitCount, 1);
   });
 
+  test('treats an HTML page from SAB as a failure rather than a successful upload', async () => {
+    const indexer = await listen((_request, response) => {
+      response.writeHead(200, {
+        'content-type': 'application/x-nzb',
+        'content-disposition': 'attachment; filename="misrouted.nzb"'
+      });
+      response.end(SAMPLE_NZB);
+    });
+    cleanups.push(() => indexer.close());
+
+    // A wrong SAB URL base serves the web interface with HTTP 200 instead of the API.
+    const sab = await listen(async (request, response) => {
+      await readRequestBody(request);
+      response.writeHead(200, { 'content-type': 'text/html' });
+      response.end('<!doctype html><html><body>SABnzbd</body></html>');
+    });
+    cleanups.push(() => sab.close());
+
+    const relay = await startRelay(createRelayApp, {
+      configStore: fakeConfigStore({ sabUrl: sab.url, sabApiKey: 'real-key' }),
+      egressChecker: { async enforce() { return { ip: '203.0.113.7' }; } },
+      dataDirectory: await temporaryDataDirectory()
+    });
+    cleanups.push(() => relay.app.stop());
+
+    await fetch(`${relay.url}/api?mode=addurl&output=json&apikey=bridge-secret&name=${encodeURIComponent(`${indexer.url}/grab`)}`);
+
+    const { entries } = await (await fetch(`${relay.url}/relay/audit`)).json();
+    assert.equal(entries[0].outcome, 'sab-error');
+
+    // The NZB must survive so it can be pushed again once SAB is reachable.
+    const archive = await (await fetch(`${relay.url}/relay/nzbs`)).json();
+    assert.equal(archive.items.length, 1);
+    assert.equal(archive.items[0].filename, 'misrouted.nzb');
+  });
+
   test('rejects an HTML login/error page instead of uploading it', async () => {
     const indexer = await listen((_request, response) => {
       response.writeHead(200, { 'content-type': 'text/html' });
