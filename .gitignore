@@ -4,3 +4,7 @@ coverage/
 .DS_Store
 *.log
 config.json
+
+# Machine-specific agent notes and local permission overrides
+CLAUDE.local.md
+.claude/settings.local.json

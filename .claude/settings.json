@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(npm ci)",
+      "Bash(npm test)",
+      "Bash(npm run test:*)",
+      "Bash(npm audit:*)",
+      "Bash(node --test:*)",
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr checks:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh release view:*)"
+    ],
+    "deny": [
+      "Read(//Users/*/Library/Application Support/NZB Relay/**)",
+      "Read(//Users/*/.nzb-relay/**)"
+    ]
+  }
+}

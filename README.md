@@ -160,6 +160,10 @@ The relay core uses Node's built-in HTTP and Fetch APIs. Integration tests start
 indexer and SAB servers and verify byte-for-byte upload behavior without external
 accounts or network access.
 
+Before changing code, read [CLAUDE.md](CLAUDE.md) for the contributor contract and the
+behavioral invariants this app depends on, and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+for the design reasoning and request lifecycle.
+
 Project layout:
 
 ```text
