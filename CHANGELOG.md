@@ -59,3 +59,7 @@
 
 - Initial macOS relay, egress guard, local configuration UI, secure secret storage,
   SAB API pass-through, and `addurl` to `addfile` conversion.
+
+---
+
+Releases before 0.2.2 predate this repository and are not published here.
