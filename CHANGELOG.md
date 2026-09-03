@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Treat a non-API response from SABnzbd as a failed submission. SABnzbd serves its web
+  interface with HTTP 200 when the URL or URL base is wrong, and that was recorded as a
+  successful upload with an empty job ID, so a grab that never reached SABnzbd looked
+  like it had succeeded. The saved NZB is now marked as failed and kept for retry, and
+  the error names the likely cause.
+
 ## 0.2.2
 
 - Name the release artifacts as GitHub publishes them before generating

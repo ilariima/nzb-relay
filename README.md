@@ -222,7 +222,7 @@ Targets Prowlarr's SABnzbd client contract and SABnzbd's documented API:
 ## Development
 
 ```bash
-npm test          # 14 tests, no network or accounts required
+npm test          # 15 tests, no network or accounts required
 npm run electron  # desktop app
 ```
 

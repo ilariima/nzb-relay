@@ -95,16 +95,28 @@ function sabJobId(result) {
   }
 }
 
+function looksLikeHtml(body) {
+  return /^\s*(?:<!doctype\s+html|<html[\s>])/i.test(body.toString('utf8').slice(0, 512));
+}
+
 function sabAccepted(result) {
   if (result.status < 200 || result.status >= 300) return false;
+  // SABnzbd serves its web interface with HTTP 200 when the API path or URL base
+  // is wrong. An HTML body is never a valid API response, so treating it as
+  // success would report a grab as uploaded that SAB never received.
+  if (looksLikeHtml(result.body)) return false;
   try {
     return JSON.parse(result.body.toString('utf8')).status !== false;
   } catch {
+    // Non-JSON output modes such as output=xml stay permissive.
     return true;
   }
 }
 
 function sabErrorMessage(result) {
+  if (looksLikeHtml(result.body)) {
+    return 'SABnzbd returned a web page instead of an API response. Check the SABnzbd URL and its URL base.';
+  }
   try {
     return JSON.parse(result.body.toString('utf8')).error || `SABnzbd rejected the NZB (HTTP ${result.status}).`;
   } catch {
