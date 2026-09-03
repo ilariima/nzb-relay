@@ -41,6 +41,14 @@ it can ask the relay to retrieve an HTTP(S) URL. Response size, timeout, content
 validation, and scheme restrictions reduce risk but do not turn this into a safe
 multi-user or remotely exposed service.
 
+Separately, the read-only administrative routes — health, settings, activity, and the
+saved-NZB listing — are served over localhost without requiring the UI header, which
+only guards mutating requests. A browser on another site cannot read them because of
+same-origin rules, but another process running as the same user on the same machine
+can. None of them return the real SABnzbd key. Both this and the fetch behavior above
+are acceptable for a single-user localhost tool and would need to be addressed before
+any LAN, container, or reverse-proxied deployment.
+
 ## Reporting a vulnerability
 
 Do not include live indexer URLs, indexer API keys, SAB API keys, or public IP
