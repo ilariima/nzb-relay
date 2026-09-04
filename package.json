@@ -1,6 +1,6 @@
 {
   "name": "nzb-relay",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Fetch NZBs locally before uploading them to SABnzbd.",
   "type": "module",
   "main": "src/electron-main.mjs",

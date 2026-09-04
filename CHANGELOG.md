@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.3
 
 - Add a **When a grab arrives** setting. **Hold in inbox** fetches and saves the
   NZB without forwarding it, leaving it for a manual send from the inbox, which
