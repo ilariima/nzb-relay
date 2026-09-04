@@ -161,8 +161,8 @@ relay therefore have to share a host.
 
 **Headless on a server** works today with `npm start`, which runs the same relay on plain
 Node without the Electron shell. This suits a VPS or self-hosted box where Prowlarr,
-NZB Relay, and SABnzbd all live on one machine. Note that headless mode has no Keychain,
-so the SAB key is kept in an owner-only config file rather than encrypted storage.
+NZB Relay, and SABnzbd all live on one machine. It behaves identically to the desktop
+build.
 
 **Containers are not supported yet.** A Docker image is planned but deliberately not
 built by relaxing the localhost bind — a container deployment needs its own network and
@@ -209,8 +209,10 @@ password, display name, and duplicate handling.
 - The service is hard-bound to `127.0.0.1`. Remote machines cannot connect.
 - A random 192-bit bridge key protects the SAB-compatible endpoint. It is not your SAB
   key, and Prowlarr only ever sees the bridge key.
-- Your real SAB key is encrypted through Electron's Keychain-backed safe storage and is
-  never returned by the settings API.
+- Your real SAB key is stored in an owner-only configuration file and is never returned
+  by the settings API. It is not encrypted at rest — SABnzbd keeps the same key in
+  plaintext in its own configuration file, and encrypting this copy made macOS ask for
+  a Keychain password on every update without protecting anything new.
 - Config and saved NZBs use owner-only permissions in an owner-only directory.
 - Archive metadata never stores the indexer download URL or its API key. Errors have
   credentials stripped before they are logged.
@@ -218,8 +220,7 @@ password, display name, and duplicate handling.
 - HTML login and error pages are rejected rather than passed to SAB as a broken job.
 - The activity log lives in memory only and is gone when the app exits.
 
-Headless Node mode has no Keychain and keeps its key in the owner-only config file. Read
-[SECURITY.md](SECURITY.md) before exposing or redistributing a build.
+Read [SECURITY.md](SECURITY.md) before exposing or redistributing a build.
 
 ## A realistic caveat
 

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Stop asking for the login Keychain password. The SABnzbd key was encrypted with
+  Electron's safe storage, but an ad-hoc signed application has no stable code
+  identity, so macOS treated every update as a different program reaching for the
+  same Keychain item and challenged the user on launch. The key is now kept in the
+  owner-only configuration file, as SABnzbd itself does. Upgrading discards a key
+  that was stored in the Keychain and asks for it once more; the bridge key and
+  every other setting are preserved.
+
 - Quit the application properly. Command-Q closed the window but left the process
   running, so the app had to be quit from its Dock icon. The shutdown handler
   cancelled the quit to stop the relay and then asked to quit again from inside

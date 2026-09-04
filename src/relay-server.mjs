@@ -147,7 +147,7 @@ async function serveStatic(requestPath, response) {
 }
 
 export async function createRelayApp(options = {}) {
-  const configStore = options.configStore || new ConfigStore(options.dataDirectory, { secretCodec: options.secretCodec });
+  const configStore = options.configStore || new ConfigStore(options.dataDirectory);
   await configStore.load();
   const auditLog = options.auditLog || new AuditLog();
   const fetchImpl = options.fetchImpl || globalThis.fetch;

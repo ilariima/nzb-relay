@@ -58,10 +58,11 @@ function normalizeConfig(value = {}) {
 }
 
 export class ConfigStore {
-  constructor(dataDirectory, options = {}) {
+  constructor(dataDirectory) {
     this.dataDirectory = dataDirectory;
     this.filePath = path.join(dataDirectory, 'config.json');
-    this.secretCodec = options.secretCodec || null;
+    // True when an upgrade discarded a key this build can no longer read.
+    this.sabApiKeyNeedsReentry = false;
     this.value = normalizeConfig();
   }
 
@@ -72,12 +73,14 @@ export class ConfigStore {
       const raw = await readFile(this.filePath, 'utf8');
       const stored = JSON.parse(raw);
       if (stored.sabApiKeyEncrypted) {
-        if (!this.secretCodec) {
-          throw new Error('The SABnzbd API key is protected by the desktop app. Open NZB Relay in desktop mode to use this configuration.');
-        }
-        stored.sabApiKey = this.secretCodec.decrypt(stored.sabApiKeyEncrypted);
+        // Written by a build that encrypted the key through the system keychain.
+        // That is gone, and the ciphertext cannot be read without it, so drop it
+        // and ask for the key again rather than failing to start.
+        delete stored.sabApiKeyEncrypted;
+        this.sabApiKeyNeedsReentry = true;
       }
       this.value = normalizeConfig(stored);
+      if (this.sabApiKeyNeedsReentry) await this.save();
     } catch (error) {
       if (error.code !== 'ENOENT') {
         throw error;
@@ -98,7 +101,7 @@ export class ConfigStore {
       ...this.get(),
       sabApiKey: '',
       sabApiKeyConfigured: Boolean(this.value.sabApiKey),
-      sabApiKeyProtected: Boolean(this.secretCodec),
+      sabApiKeyNeedsReentry: this.sabApiKeyNeedsReentry,
       maxNzbMegabytes: Math.round(this.value.maxNzbBytes / 1024 / 1024)
     };
   }
@@ -118,6 +121,7 @@ export class ConfigStore {
     };
 
     this.value = normalizeConfig(candidate);
+    if (this.value.sabApiKey) this.sabApiKeyNeedsReentry = false;
     await this.save();
     return this.getPublic();
   }
@@ -125,10 +129,6 @@ export class ConfigStore {
   async save() {
     const temporaryPath = `${this.filePath}.tmp`;
     const stored = { ...this.value };
-    if (this.secretCodec && stored.sabApiKey) {
-      stored.sabApiKeyEncrypted = this.secretCodec.encrypt(stored.sabApiKey);
-      delete stored.sabApiKey;
-    }
     await writeFile(temporaryPath, `${JSON.stringify(stored, null, 2)}\n`, { mode: 0o600 });
     await rename(temporaryPath, this.filePath);
     await chmod(this.filePath, 0o600);

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, nativeTheme, safeStorage, shell } from 'electron';
+import { app, BrowserWindow, dialog, nativeTheme, shell } from 'electron';
 
 import { createRelayApp } from './relay-server.mjs';
 
@@ -75,15 +75,8 @@ app.on('will-quit', () => {
 
 app.whenReady().then(async () => {
   try {
-    const secretCodec = safeStorage.isEncryptionAvailable()
-      ? {
-          encrypt: value => safeStorage.encryptString(value).toString('base64'),
-          decrypt: value => safeStorage.decryptString(Buffer.from(value, 'base64'))
-        }
-      : null;
     relay = await createRelayApp({
       dataDirectory: app.getPath('userData'),
-      secretCodec,
       openNzbDirectory: directory => shell.openPath(directory)
     });
     await relay.start();

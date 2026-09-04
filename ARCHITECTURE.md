@@ -142,9 +142,16 @@ release.
 
 Prowlarr only ever holds the bridge key: a random 192-bit value with no meaning outside
 this relay. If it leaks, it grants access to a localhost service, not to a SAB instance
-or a Usenet account. The real SAB key is stored separately, encrypted through Electron
-`safeStorage` (Keychain-backed on macOS), never returned by the settings API, and
-substituted only on outbound requests to SAB.
+or a Usenet account. The real SAB key is stored separately in an owner-only
+configuration file, never returned by the settings API, and substituted only on
+outbound requests to SAB.
+
+It is not encrypted at rest. It was, through Electron's `safeStorage`, but an ad-hoc
+signed application has no stable code identity, so every release looked to macOS like a
+different program reaching for the same Keychain item and the user was challenged for a
+password on launch. Since SABnzbd stores the same key in plaintext in its own
+configuration file on the same machine, the encryption guarded a secret that was already
+exposed. See [SECURITY.md](SECURITY.md).
 
 The localhost bind is a security boundary rather than a deployment default. Two known
 weaknesses follow from it, both recorded in [SECURITY.md](SECURITY.md): anyone holding

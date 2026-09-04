@@ -112,9 +112,19 @@ function populate(nextConfig) {
   $('#max-size').value = config.maxNzbMegabytes;
   populateRetention(config.nzbRetentionHours);
   $('#retention-note').textContent = retentionNote(config.nzbRetentionHours);
-  $('#sab-key-help').textContent = config.sabApiKeyConfigured
-    ? `A key is saved${config.sabApiKeyProtected ? ' in the system keychain' : ''}. Leave blank to keep it.`
-    : 'No key saved yet. Prowlarr never receives this key.';
+  const help = $('#sab-key-help');
+  $('#sab-key').placeholder = config.sabApiKeyConfigured
+    ? 'Leave blank to keep the saved key'
+    : 'Paste your SABnzbd API key';
+  if (config.sabApiKeyNeedsReentry) {
+    help.textContent = 'Enter your SABnzbd API key again. The previous one was stored in the system keychain, which this version no longer uses.';
+    help.className = 'hint attention';
+  } else {
+    help.textContent = config.sabApiKeyConfigured
+      ? 'A key is saved. Leave blank to keep it.'
+      : 'No key saved yet. Prowlarr never receives this key.';
+    help.className = 'hint';
+  }
 }
 
 async function load() {

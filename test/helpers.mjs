@@ -37,7 +37,7 @@ export function fakeConfigStore(overrides = {}) {
         ...structuredClone(value),
         sabApiKey: '',
         sabApiKeyConfigured: Boolean(value.sabApiKey),
-        sabApiKeyProtected: false,
+        sabApiKeyNeedsReentry: false,
         maxNzbMegabytes: Math.round(value.maxNzbBytes / 1024 / 1024)
       };
     },
