@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Quit the application properly. Command-Q closed the window but left the process
+  running, so the app had to be quit from its Dock icon. The shutdown handler
+  cancelled the quit to stop the relay and then asked to quit again from inside
+  that same handler, and the second request was discarded while the first was
+  still unwinding.
+
 ## 0.2.3
 
 - Add a **When a grab arrives** setting. **Hold in inbox** fetches and saves the
