@@ -116,6 +116,58 @@ describe('Prowlarr-to-SAB relay', () => {
     assert.ok(sabRequests[1].body.includes(SAMPLE_NZB), 'manual retry uses the saved NZB bytes');
   });
 
+  test('holds the NZB in the inbox without contacting SAB when grabMode is hold', async () => {
+    const indexer = await listen((_request, response) => {
+      response.writeHead(200, {
+        'content-type': 'application/x-nzb',
+        'content-disposition': 'attachment; filename="held.nzb"'
+      });
+      response.end(SAMPLE_NZB);
+    });
+    cleanups.push(() => indexer.close());
+
+    let sabCalls = 0;
+    const sab = await listen(async (request, response) => {
+      sabCalls += 1;
+      await readRequestBody(request);
+      response.writeHead(200, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ status: true, nzo_ids: ['SABnzbd_nzo_should_not_happen'] }));
+    });
+    cleanups.push(() => sab.close());
+
+    const relay = await startRelay(createRelayApp, {
+      configStore: fakeConfigStore({ sabUrl: sab.url, sabApiKey: 'real-key', grabMode: 'hold' }),
+      egressChecker: { async enforce() { return { ip: '203.0.113.7' }; } },
+      dataDirectory: await temporaryDataDirectory()
+    });
+    cleanups.push(() => relay.app.stop());
+
+    const response = await fetch(`${relay.url}/api?mode=addurl&output=json&apikey=bridge-secret&cat=tv&name=${encodeURIComponent(`${indexer.url}/grab`)}`);
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.status, true);
+    assert.match(payload.nzo_ids[0], /^NZBRelay_hold_/);
+
+    // The whole point of the mode: SAB is never contacted.
+    assert.equal(sabCalls, 0);
+
+    const archive = await (await fetch(`${relay.url}/relay/nzbs`)).json();
+    assert.equal(archive.items.length, 1);
+    assert.equal(archive.items[0].filename, 'held.nzb');
+    assert.equal(archive.items[0].submitCount, 0);
+
+    const { entries } = await (await fetch(`${relay.url}/relay/audit`)).json();
+    assert.equal(entries[0].outcome, 'held');
+
+    // A manual send still reaches SAB and preserves the original parameters.
+    const push = await fetch(`${relay.url}/relay/nzbs/${archive.items[0].id}/push`, {
+      method: 'POST',
+      headers: { 'x-nzb-relay-ui': '1' }
+    });
+    assert.equal(push.status, 200);
+    assert.equal(sabCalls, 1);
+  });
+
   test('passes SAB capability checks through while replacing the API key', async () => {
     let received;
     const sab = await listen(async (request, response) => {

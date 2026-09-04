@@ -92,8 +92,20 @@ function retentionNote(hours) {
   return `Kept ${label}, then removed automatically. Retrying reads the saved file — the indexer is never contacted again.`;
 }
 
+const GRAB_MODE_HINTS = {
+  send: 'The NZB is fetched, saved, then sent on to SABnzbd.',
+  hold: 'The NZB is fetched and saved only. Send it from the inbox when you want it.'
+};
+
+function applyGrabMode(mode) {
+  $('#grab-mode').value = mode;
+  $('#grab-mode-hint').textContent = GRAB_MODE_HINTS[mode] || GRAB_MODE_HINTS.send;
+  $('#hold-banner').hidden = mode !== 'hold';
+}
+
 function populate(nextConfig) {
   config = nextConfig;
+  applyGrabMode(config.grabMode);
   $('#listen-port').textContent = config.listenPort;
   $('#bridge-key').textContent = config.bridgeApiKey;
   $('#sab-url').value = config.sabUrl;
@@ -189,6 +201,7 @@ async function saveSettings(event) {
       body: JSON.stringify({
         sabUrl: $('#sab-url').value.trim(),
         sabApiKey: $('#sab-key').value.trim(),
+        grabMode: $('#grab-mode').value,
         maxNzbMegabytes: Number($('#max-size').value),
         nzbRetentionHours: retentionHours()
       })
@@ -270,9 +283,10 @@ async function refreshLog() {
 
       const outcome = row.insertCell();
       const ok = entry.outcome.endsWith('uploaded');
+      const held = entry.outcome === 'held';
       const state = document.createElement('span');
-      state.className = `state ${ok ? 'ok' : 'bad'}`;
-      state.append(ok ? icon(CHECK) : '', entry.outcome);
+      state.className = `state ${ok ? 'ok' : held ? '' : 'bad'}`;
+      state.append(ok ? icon(CHECK) : '', held ? 'held' : entry.outcome);
       outcome.append(state);
 
       row.insertCell().textContent = entry.sourceHost || '—';
@@ -405,6 +419,11 @@ $('#check-egress').addEventListener('click', checkEgress);
 $('#test-sab').addEventListener('click', testSab);
 $('#refresh-log').addEventListener('click', refreshLog);
 $('#refresh-nzbs').addEventListener('click', refreshNzbs);
+$('#grab-mode').addEventListener('change', () => {
+  // Preview the change immediately; it only takes effect once saved.
+  $('#grab-mode-hint').textContent = GRAB_MODE_HINTS[$('#grab-mode').value];
+});
+$('#hold-banner-link').addEventListener('click', () => showView('inbox'));
 $('#retention-unit').addEventListener('change', () => {
   $('#retention-amount').disabled = $('#retention-unit').value === 'forever';
 });

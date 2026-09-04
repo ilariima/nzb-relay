@@ -266,6 +266,21 @@ input.tiny { width: 72px; }
 .last-grab { display: flex; align-items: center; gap: 10px; color: var(--muted); }
 .last-grab .glyph { stroke: var(--good); }
 
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 11px 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+}
+.banner .glyph { flex: 0 0 15px; width: 15px; height: 15px; stroke: var(--accent); }
+.banner circle { fill: none; }
+.banner span { min-width: 0; }
+.banner .button { margin-left: auto; flex: 0 0 auto; }
+
 /* ---------- tables ---------- */
 
 .table-wrap { overflow-x: auto; }

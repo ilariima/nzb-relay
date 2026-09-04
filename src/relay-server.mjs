@@ -325,6 +325,24 @@ export async function createRelayApp(options = {}) {
             sourceHost: hostnameOf(nzb.finalUrl),
             egressIp: egress.ip
           });
+
+          if (config.grabMode === 'hold') {
+            // The NZB stays in the inbox until the user sends it. SAB is not
+            // contacted at all, so there is no real job to report: Prowlarr is
+            // given a success carrying a clearly synthetic id, which will not
+            // resolve if anything later queries SAB for it.
+            auditLog.add({
+              outcome: 'held',
+              sourceHost: hostnameOf(nzb.finalUrl),
+              egressIp: egress.ip,
+              filename: nzb.filename,
+              bytes: nzb.bytes.byteLength,
+              archiveId: archived.id
+            });
+            json(response, 200, { status: true, nzo_ids: [`NZBRelay_hold_${archived.id.slice(0, 8)}`] });
+            return;
+          }
+
           const result = await uploadNzbToSab(nzb, parameters, config, { fetchImpl });
           await nzbArchive.markSubmitted(archived.id, {
             sabJobId: sabJobId(result),

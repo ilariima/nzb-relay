@@ -9,10 +9,15 @@ export const DEFAULT_CONFIG = Object.freeze({
   sabUrl: '',
   sabApiKey: '',
   egressCheckUrl: 'https://api.ipify.org?format=json',
+  grabMode: 'send',
   requestTimeoutMs: 30_000,
   maxNzbBytes: 64 * 1024 * 1024,
   nzbRetentionHours: 7 * 24
 });
+
+// 'send' forwards a fetched NZB to SABnzbd immediately. 'hold' stops after the
+// archive write, leaving the file for a manual send from the inbox.
+export const GRAB_MODES = Object.freeze(['send', 'hold']);
 
 function generateApiKey() {
   return randomBytes(24).toString('hex');
@@ -39,6 +44,7 @@ function normalizeConfig(value = {}) {
     sabUrl: normalizeSabUrl(value.sabUrl),
     sabApiKey: String(value.sabApiKey || '').trim(),
     egressCheckUrl: String(value.egressCheckUrl || DEFAULT_CONFIG.egressCheckUrl).trim(),
+    grabMode: GRAB_MODES.includes(value.grabMode) ? value.grabMode : DEFAULT_CONFIG.grabMode,
     requestTimeoutMs: Number.isFinite(timeout) && timeout >= 1_000 && timeout <= 120_000
       ? Math.round(timeout)
       : DEFAULT_CONFIG.requestTimeoutMs,
@@ -103,6 +109,7 @@ export class ConfigStore {
       sabUrl: input.sabUrl ?? this.value.sabUrl,
       sabApiKey: input.sabApiKey ? input.sabApiKey : this.value.sabApiKey,
       egressCheckUrl: input.egressCheckUrl ?? this.value.egressCheckUrl,
+      grabMode: input.grabMode ?? this.value.grabMode,
       requestTimeoutMs: input.requestTimeoutMs ?? this.value.requestTimeoutMs,
       nzbRetentionHours: input.nzbRetentionHours ?? this.value.nzbRetentionHours,
       maxNzbBytes: input.maxNzbMegabytes

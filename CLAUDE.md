@@ -83,7 +83,14 @@ explicit decision from the maintainer.
 12. **The bridge key and the real SAB key stay separate**, compared with
     `timingSafeEqual` on equal-length buffers.
 
-13. **A non-API response from SAB counts as a failure, not a success.**
+13. **`grabMode: 'hold'` must never contact SAB during a grab.** The mode exists
+    so a fetched NZB waits in the inbox. It still runs the fresh egress lookup
+    and still writes to the archive first — only the upload is skipped. Prowlarr
+    receives a success carrying a synthetic `NZBRelay_hold_*` id, because there
+    is no SAB job to report; anything that later queries SAB for that id will
+    not find it.
+
+14. **A non-API response from SAB counts as a failure, not a success.**
     `sabAccepted()` rejects an HTML body outright, because SAB serves its web
     interface with HTTP 200 when the URL base is wrong. The permissive fallback
     that follows exists only for non-JSON output modes such as `output=xml`; do

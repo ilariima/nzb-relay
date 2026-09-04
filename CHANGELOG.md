@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add a **When a grab arrives** setting. **Hold in inbox** fetches and saves the
+  NZB without forwarding it, leaving it for a manual send from the inbox, which
+  suits reviewing a release first or collecting grabs while SABnzbd is off.
+  **Send to SABnzbd** remains the default and the previous behavior.
 - Rebuild the interface as a macOS utility. A sidebar replaces the single
   scrolling page, so settings no longer compete for space with the saved-NZB
   inbox, and the window starts at 900x620 instead of 980x760.
