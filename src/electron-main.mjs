@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, safeStorage, shell } from 'electron';
+import { app, BrowserWindow, dialog, nativeTheme, safeStorage, shell } from 'electron';
 
 import { createRelayApp } from './relay-server.mjs';
 
@@ -20,12 +20,17 @@ async function createWindow() {
   const config = relay.configStore.get();
   const localOrigin = `http://${config.listenHost}:${config.listenPort}`;
   mainWindow = new BrowserWindow({
-    width: 980,
-    height: 760,
-    minWidth: 780,
-    minHeight: 620,
+    width: 900,
+    height: 620,
+    minWidth: 620,
+    minHeight: 520,
     title: 'NZB Relay',
-    backgroundColor: '#0c111b',
+    // The sidebar runs the full height of the window and reserves space for the
+    // traffic lights, so the title bar itself is hidden.
+    titleBarStyle: 'hiddenInset',
+    // Matches the stylesheet's two grounds so the window does not flash the
+    // wrong colour before the first paint.
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#1c1c1e' : '#ffffff',
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
