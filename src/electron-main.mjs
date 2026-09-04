@@ -63,13 +63,14 @@ app.on('activate', createWindow);
 app.on('before-quit', () => {
   quitting = true;
 });
-app.on('will-quit', async event => {
-  if (relay?.server.listening) {
-    event.preventDefault();
-    await relay.stop();
-    relay = null;
-    app.quit();
-  }
+// The relay is a localhost HTTP server with nothing to flush, so stop accepting
+// connections and let the quit run to completion. Cancelling the quit here and
+// calling app.quit() again from inside the handler left the process alive: the
+// nested quit is swallowed while the first sequence is still unwinding, so the
+// app only ever closed its window.
+app.on('will-quit', () => {
+  relay?.server.close();
+  relay = null;
 });
 
 app.whenReady().then(async () => {
