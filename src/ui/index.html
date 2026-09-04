@@ -7,139 +7,213 @@
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
-    <main class="shell">
-      <header class="hero">
-        <div class="mark" aria-hidden="true">NR</div>
-        <div>
-          <p class="eyebrow">LOCAL NZB HANDOFF</p>
-          <h1>NZB Relay</h1>
-          <p class="lede">Fetch and save the NZB here, verify this app’s public IP, then send the file bytes to SABnzbd.</p>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="sidebar-top"></div>
+        <div class="brand">NZB Relay</div>
+
+        <nav class="nav" aria-label="Sections">
+          <button class="nav-item is-current" type="button" data-view="status" aria-current="page">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20a8 8 0 1 0-8-8"/><path d="M12 12l4.5-3"/></svg>
+            <span>Status</span>
+          </button>
+          <button class="nav-item" type="button" data-view="inbox">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 14h4l1.5 3h7L17 14h4"/><path d="M4 6.5A1.5 1.5 0 0 1 5.5 5h13A1.5 1.5 0 0 1 20 6.5V17a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/></svg>
+            <span>Saved NZBs</span>
+            <em class="count" id="inbox-count" hidden>0</em>
+          </button>
+          <button class="nav-item" type="button" data-view="activity">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h3l2.5-6 4 13 2.5-7h4"/></svg>
+            <span>Activity</span>
+          </button>
+          <button class="nav-item" type="button" data-view="settings">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M12 3.5v2M12 18.5v2M20.5 12h-2M5.5 12h-2M18 6l-1.4 1.4M7.4 16.6 6 18M18 18l-1.4-1.4M7.4 7.4 6 6"/></svg>
+            <span>Settings</span>
+          </button>
+        </nav>
+
+        <div class="sidebar-foot">
+          <span class="dot" id="service-dot"></span>
+          <span id="service-text">Starting</span>
+          <span class="version" id="service-version"></span>
         </div>
-        <div id="service-status" class="pill neutral"><span></span>Starting</div>
-      </header>
+      </aside>
 
-      <section class="ip-checkbar" aria-label="NZB Relay public IP">
-        <div class="ip-checkbar-copy">
-          <span>NZB Relay public IP</span>
-          <strong id="current-ip">Not checked</strong>
-          <small id="egress-detail">Click Check IP for a fresh lookup through this app.</small>
-        </div>
-        <button id="check-egress" class="secondary" type="button">Check IP</button>
-      </section>
-
-      <section class="flow" aria-label="Relay flow">
-        <div><b>1</b><span>Prowlarr sends URL</span></div>
-        <i aria-hidden="true">→</i>
-        <div><b>2</b><span>Relay fetches + saves</span></div>
-        <i aria-hidden="true">→</i>
-        <div><b>3</b><span>SAB gets file bytes</span></div>
-      </section>
-
-      <div id="notice" class="toast" role="status" aria-live="polite" hidden></div>
-
-      <section class="endpoint-section">
-        <article class="card endpoint-card">
-          <div class="card-heading">
-            <div>
-              <p class="eyebrow">PROWLARR TARGET</p>
-              <h2>Local endpoint</h2>
+      <main class="main">
+        <!-- Status -->
+        <section class="view" id="view-status">
+          <header class="toolbar"><h1>Status</h1></header>
+          <div class="body">
+            <div class="panel">
+              <div class="egress">
+                <div class="egress-copy">
+                  <p class="label">Grabs leave from</p>
+                  <strong class="address" id="current-ip">Not checked</strong>
+                  <p class="sub" id="egress-detail">No lookup yet this session.</p>
+                </div>
+                <button class="button" id="check-egress" type="button">
+                  <svg class="glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4.5V9h-4.5"/></svg>
+                  Check now
+                </button>
+              </div>
+              <div class="egress-previous" id="egress-previous" hidden>
+                <span class="muted">Previous</span>
+                <span class="mono" id="previous-ip"></span>
+                <span class="muted" id="previous-detail"></span>
+                <span class="verdict" id="egress-verdict"></span>
+              </div>
             </div>
-            <span class="local-only">LOCAL ONLY</span>
-          </div>
-          <dl class="endpoint-list">
-            <div><dt>Host</dt><dd>127.0.0.1</dd></div>
-            <div><dt>Port</dt><dd id="listen-port">9788</dd></div>
-            <div class="key-row"><dt>API key</dt><dd id="bridge-key">Loading…</dd><button id="copy-key" type="button" class="copy">Copy</button></div>
-          </dl>
-        </article>
-      </section>
 
-      <form id="settings-form" class="card settings-card">
-        <div class="card-heading">
-          <div>
-            <p class="eyebrow">DESTINATION</p>
-            <h2>SABnzbd and storage</h2>
-          </div>
-          <span id="save-state" class="muted"></span>
-        </div>
-
-        <div class="form-grid">
-          <label class="wide">
-            <span>SABnzbd URL</span>
-            <input id="sab-url" name="sabUrl" type="text" inputmode="url" placeholder="127.0.0.1:8080" autocomplete="url" required>
-            <small>Local addresses automatically use HTTP. Include SAB’s URL base if you use one.</small>
-          </label>
-
-          <label class="wide">
-            <span>SABnzbd API key</span>
-            <input id="sab-key" name="sabApiKey" type="password" placeholder="Leave blank to keep the saved key" autocomplete="off">
-            <small id="sab-key-help">Stored only in this Mac’s app data.</small>
-          </label>
-
-          <label>
-            <span>Maximum NZB size</span>
-            <div class="unit-input"><input id="max-size" name="maxNzbMegabytes" type="number" min="1" max="256" step="1"><em>MB</em></div>
-            <small>Oversized responses are rejected.</small>
-          </label>
-
-          <label class="wide">
-            <span>Keep saved NZBs for</span>
-            <div class="retention-input">
-              <input id="retention-amount" type="number" min="1" max="87600" step="1" value="7">
-              <select id="retention-unit" aria-label="NZB retention unit">
-                <option value="hours">Hours</option>
-                <option value="days" selected>Days</option>
-                <option value="forever">Forever</option>
-              </select>
+            <div class="panel">
+              <div class="panel-head">
+                <h2>Point Prowlarr here</h2>
+                <span class="tag">LOCAL ONLY</span>
+              </div>
+              <dl class="rows">
+                <div class="row"><dt>Host</dt><dd class="mono">127.0.0.1</dd><dd class="row-end"></dd></div>
+                <div class="row"><dt>Port</dt><dd class="mono" id="listen-port">9788</dd><dd class="row-end"></dd></div>
+                <div class="row">
+                  <dt>API key</dt>
+                  <dd class="mono key" id="bridge-key">Loading…</dd>
+                  <dd class="row-end"><button class="button small" id="copy-key" type="button">Copy</button></dd>
+                </div>
+              </dl>
             </div>
-            <small>Expired files are removed automatically. Forever disables automatic deletion.</small>
-          </label>
-        </div>
 
-        <div class="actions">
-          <button id="test-sab" class="secondary" type="button">Test SABnzbd</button>
-          <button class="primary" type="submit">Save settings</button>
-        </div>
-      </form>
-
-      <section class="card archive-card">
-        <div class="card-heading archive-heading">
-          <div>
-            <p class="eyebrow">PERSISTENT INBOX</p>
-            <h2>Saved NZBs</h2>
+            <p class="last-grab" id="last-grab" hidden>
+              <svg class="glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12.5 9.5 18 20 6.5"/></svg>
+              <span class="muted">Last grab</span>
+              <span id="last-grab-detail"></span>
+            </p>
           </div>
-          <div class="heading-actions">
-            <button id="open-nzb-folder" class="secondary" type="button">Open folder</button>
-            <button id="refresh-nzbs" class="text-button" type="button">Refresh</button>
-          </div>
-        </div>
-        <p class="folder-path"><span>Folder</span><code id="nzb-folder">Loading…</code></p>
-        <div class="table-wrap">
-          <table class="archive-table">
-            <thead><tr><th>Saved</th><th>NZB file</th><th>Size</th><th>Last SAB submission</th><th></th></tr></thead>
-            <tbody id="nzb-body"><tr><td colspan="5" class="empty">No saved NZBs.</td></tr></tbody>
-          </table>
-        </div>
-      </section>
+        </section>
 
-      <section class="card activity-card">
-        <div class="card-heading">
-          <div>
-            <p class="eyebrow">RECENT ACTIVITY</p>
-            <h2>Local audit log</h2>
+        <!-- Saved NZBs -->
+        <section class="view" id="view-inbox" hidden>
+          <header class="toolbar">
+            <h1>Saved NZBs</h1>
+            <div class="toolbar-actions">
+              <button class="button small" id="open-nzb-folder" type="button">
+                <svg class="glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4L11 8.5h8.5A1.5 1.5 0 0 1 21 10v7.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"/></svg>
+                Open folder
+              </button>
+              <button class="button small" id="refresh-nzbs" type="button">
+                <svg class="glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4.5V9h-4.5"/></svg>
+                Refresh
+              </button>
+            </div>
+          </header>
+          <div class="body">
+            <div class="table-wrap">
+              <table class="grid">
+                <thead><tr><th>File</th><th class="num">Size</th><th>Saved</th><th class="end">Last submission</th></tr></thead>
+                <tbody id="nzb-body"><tr><td colspan="4" class="empty">No saved NZBs.</td></tr></tbody>
+              </table>
+            </div>
+            <p class="footnote">
+              <svg class="glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.6v4.2"/><circle cx="12" cy="16.2" r=".8"/><circle cx="12" cy="12" r="8.6"/></svg>
+              <span id="retention-note">Retrying reads the saved file — the indexer is never contacted again.</span>
+            </p>
+            <p class="folder"><span class="muted">Folder</span><code id="nzb-folder">Loading…</code></p>
           </div>
-          <button id="refresh-log" class="text-button" type="button">Refresh</button>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Time</th><th>Result</th><th>Indexer</th><th>File</th><th>Egress</th></tr></thead>
-            <tbody id="activity-body"><tr><td colspan="5" class="empty">No grabs this session.</td></tr></tbody>
-          </table>
-        </div>
-      </section>
+        </section>
 
-      <footer>Bound to localhost. NZB Relay never accepts remote connections.</footer>
-    </main>
+        <!-- Activity -->
+        <section class="view" id="view-activity" hidden>
+          <header class="toolbar">
+            <h1>Activity</h1>
+            <div class="toolbar-actions">
+              <button class="button small" id="refresh-log" type="button">
+                <svg class="glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4.5V9h-4.5"/></svg>
+                Refresh
+              </button>
+            </div>
+          </header>
+          <div class="body">
+            <div class="table-wrap">
+              <table class="grid">
+                <thead><tr><th>Time</th><th>Result</th><th>Indexer</th><th>File</th><th class="end">Egress</th></tr></thead>
+                <tbody id="activity-body"><tr><td colspan="5" class="empty">No grabs this session.</td></tr></tbody>
+              </table>
+            </div>
+            <p class="footnote">
+              <svg class="glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.6v4.2"/><circle cx="12" cy="16.2" r=".8"/><circle cx="12" cy="12" r="8.6"/></svg>
+              <span>Kept in memory only. Quitting NZB Relay clears it.</span>
+            </p>
+          </div>
+        </section>
+
+        <!-- Settings -->
+        <section class="view" id="view-settings" hidden>
+          <header class="toolbar"><h1>Settings</h1></header>
+          <div class="body">
+            <form id="settings-form">
+              <section class="group">
+                <h2>SABnzbd</h2>
+                <div class="field">
+                  <label for="sab-url">Address</label>
+                  <div class="control">
+                    <input id="sab-url" name="sabUrl" type="text" inputmode="url" placeholder="127.0.0.1:8080" autocomplete="url" required>
+                    <p class="hint">Local addresses use HTTP automatically. Include SAB’s URL base if you set one.</p>
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="sab-key">API key</label>
+                  <div class="control">
+                    <input id="sab-key" name="sabApiKey" type="password" placeholder="Leave blank to keep the saved key" autocomplete="off">
+                    <p class="hint" id="sab-key-help">Prowlarr never receives this key.</p>
+                  </div>
+                </div>
+                <div class="field">
+                  <span class="label-spacer" aria-hidden="true"></span>
+                  <div class="control inline">
+                    <button class="button" id="test-sab" type="button">Test connection</button>
+                    <span class="test-result" id="test-result"></span>
+                  </div>
+                </div>
+              </section>
+
+              <hr class="rule">
+
+              <section class="group">
+                <h2>Saved NZBs</h2>
+                <div class="field">
+                  <label for="retention-amount">Keep for</label>
+                  <div class="control">
+                    <div class="inline">
+                      <input id="retention-amount" type="number" min="1" max="87600" step="1" value="7" class="tiny">
+                      <select id="retention-unit" aria-label="Retention unit">
+                        <option value="hours">Hours</option>
+                        <option value="days" selected>Days</option>
+                        <option value="forever">Forever</option>
+                      </select>
+                    </div>
+                    <p class="hint">Older files are deleted automatically. Forever keeps everything.</p>
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="max-size">Maximum size</label>
+                  <div class="control">
+                    <div class="inline">
+                      <input id="max-size" name="maxNzbMegabytes" type="number" min="1" max="256" step="1" class="tiny">
+                      <span class="unit">MB</span>
+                    </div>
+                    <p class="hint">Larger indexer responses are rejected rather than saved.</p>
+                  </div>
+                </div>
+              </section>
+
+              <div class="form-foot">
+                <span class="muted" id="save-state"></span>
+                <button class="button primary" type="submit">Save</button>
+              </div>
+            </form>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div id="notice" class="toast" role="status" aria-live="polite" hidden></div>
     <script src="/app.js" type="module"></script>
   </body>
 </html>

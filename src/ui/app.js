@@ -1,18 +1,23 @@
 const $ = selector => document.querySelector(selector);
+const $$ = selector => [...document.querySelectorAll(selector)];
 
 let config;
 let toastTimer;
 
-function setNotice(message, good = false) {
+// The previous egress reading is kept in memory only, never written to disk.
+// Persisting observed public IPs is a privacy decision this project has not
+// made — see the audit log, which is deliberately ephemeral for the same reason.
+let previousEgress = null;
+let currentEgress = null;
+
+function setNotice(message, tone = 'bad') {
   const element = $('#notice');
   clearTimeout(toastTimer);
   element.textContent = message;
-  element.className = `toast${good ? ' good' : ''}`;
+  element.className = `toast ${tone}`;
   element.hidden = !message;
   if (message) {
-    toastTimer = setTimeout(() => {
-      element.hidden = true;
-    }, good ? 5_000 : 9_000);
+    toastTimer = setTimeout(() => { element.hidden = true; }, tone === 'good' ? 5_000 : 9_000);
   }
 }
 
@@ -34,6 +39,37 @@ async function request(path, options = {}) {
   return value;
 }
 
+function icon(path, className = 'glyph') {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('class', className);
+  svg.setAttribute('aria-hidden', 'true');
+  const node = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  node.setAttribute('d', path);
+  svg.append(node);
+  return svg;
+}
+
+const CHECK = 'M4 12.5 9.5 18 20 6.5';
+
+/* ---------- navigation ---------- */
+
+function showView(name) {
+  $$('.view').forEach(view => { view.hidden = view.id !== `view-${name}`; });
+  $$('.nav-item').forEach(item => {
+    const current = item.dataset.view === name;
+    item.classList.toggle('is-current', current);
+    if (current) item.setAttribute('aria-current', 'page');
+    else item.removeAttribute('aria-current');
+  });
+}
+
+$$('.nav-item').forEach(item => {
+  item.addEventListener('click', () => showView(item.dataset.view));
+});
+
+/* ---------- config ---------- */
+
 function populateRetention(hours) {
   const amount = $('#retention-amount');
   const unit = $('#retention-unit');
@@ -50,6 +86,12 @@ function populateRetention(hours) {
   amount.disabled = unit.value === 'forever';
 }
 
+function retentionNote(hours) {
+  if (hours === 0) return 'Kept forever. Retrying reads the saved file — the indexer is never contacted again.';
+  const label = hours % 24 === 0 ? `${hours / 24} day${hours === 24 ? '' : 's'}` : `${hours} hour${hours === 1 ? '' : 's'}`;
+  return `Kept ${label}, then removed automatically. Retrying reads the saved file — the indexer is never contacted again.`;
+}
+
 function populate(nextConfig) {
   config = nextConfig;
   $('#listen-port').textContent = config.listenPort;
@@ -57,51 +99,82 @@ function populate(nextConfig) {
   $('#sab-url').value = config.sabUrl;
   $('#max-size').value = config.maxNzbMegabytes;
   populateRetention(config.nzbRetentionHours);
+  $('#retention-note').textContent = retentionNote(config.nzbRetentionHours);
   $('#sab-key-help').textContent = config.sabApiKeyConfigured
-    ? `A key is saved${config.sabApiKeyProtected ? ' using protected system storage' : ''}. Leave this blank to keep it.`
-    : 'No key is saved yet.';
+    ? `A key is saved${config.sabApiKeyProtected ? ' in the system keychain' : ''}. Leave blank to keep it.`
+    : 'No key saved yet. Prowlarr never receives this key.';
 }
 
 async function load() {
   try {
     populate(await request('/relay/config'));
     const health = await request('/relay/health');
-    $('#service-status').className = 'pill good';
-    $('#service-status').innerHTML = `<span></span>Running · v${health.version}`;
+    $('#service-dot').className = 'dot good';
+    $('#service-text').textContent = 'Running';
+    $('#service-version').textContent = health.version;
     await Promise.all([refreshLog(), refreshNzbs()]);
   } catch (error) {
-    $('#service-status').className = 'pill bad';
-    $('#service-status').innerHTML = '<span></span>Needs attention';
+    $('#service-dot').className = 'dot bad';
+    $('#service-text').textContent = 'Needs attention';
     setNotice(error.message);
   }
+}
+
+/* ---------- egress ---------- */
+
+function relativeTime(timestamp) {
+  const seconds = Math.max(0, Math.round((Date.now() - timestamp) / 1000));
+  if (seconds < 60) return `${seconds} second${seconds === 1 ? '' : 's'} ago`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+  const hours = Math.round(minutes / 60);
+  return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+}
+
+function renderPrevious() {
+  const box = $('#egress-previous');
+  if (!previousEgress) {
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+  $('#previous-ip').textContent = previousEgress.ip;
+  $('#previous-detail').textContent = `· ${relativeTime(previousEgress.at)}`;
+  const verdict = $('#egress-verdict');
+  verdict.replaceChildren();
+  const changed = currentEgress && currentEgress.ip !== previousEgress.ip;
+  verdict.className = `verdict ${changed ? 'changed' : 'same'}`;
+  if (changed) verdict.append(icon(CHECK), 'Address changed');
+  else verdict.append('Same address');
 }
 
 async function checkEgress() {
   const button = $('#check-egress');
   button.disabled = true;
-  button.textContent = 'Checking…';
   try {
     const result = await request('/relay/egress');
+    if (currentEgress && currentEgress.ip !== result.ip) previousEgress = currentEgress;
+    else if (currentEgress) previousEgress = { ...currentEgress };
+    currentEgress = { ip: result.ip, at: Number(result.checkedAt) || Date.now() };
     $('#current-ip').textContent = result.ip;
-    $('#current-ip').style.color = 'var(--accent)';
-    const checked = new Date(result.checkedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    $('#egress-detail').textContent = `Fresh lookup at ${checked}. Compare this address before and after connecting your VPN.`;
-    setNotice(`NZB Relay is currently using ${result.ip}.`, true);
+    $('#egress-detail').textContent = `Fresh lookup ${relativeTime(currentEgress.at)}`;
+    renderPrevious();
   } catch (error) {
-    setNotice(`Egress check failed: ${error.message}`);
+    setNotice(`Could not check the public IP: ${error.message}`);
   } finally {
     button.disabled = false;
-    button.textContent = 'Check IP';
   }
 }
+
+/* ---------- settings ---------- */
 
 function retentionHours() {
   const unit = $('#retention-unit').value;
   if (unit === 'forever') return 0;
   const amount = Number($('#retention-amount').value);
-  if (!Number.isInteger(amount) || amount < 1) throw new Error('NZB retention must be at least 1 hour or day.');
+  if (!Number.isInteger(amount) || amount < 1) throw new Error('Retention must be at least 1 hour or day.');
   const hours = unit === 'days' ? amount * 24 : amount;
-  if (hours > 87_600) throw new Error('NZB retention cannot exceed 10 years. Choose Forever for unlimited retention.');
+  if (hours > 87_600) throw new Error('Retention cannot exceed 10 years. Choose Forever instead.');
   return hours;
 }
 
@@ -111,16 +184,18 @@ async function saveSettings(event) {
   if (submit) submit.disabled = true;
   $('#save-state').textContent = 'Saving…';
   try {
-    const payload = {
-      sabUrl: $('#sab-url').value.trim(),
-      sabApiKey: $('#sab-key').value.trim(),
-      maxNzbMegabytes: Number($('#max-size').value),
-      nzbRetentionHours: retentionHours()
-    };
-    populate(await request('/relay/config', { method: 'POST', body: JSON.stringify(payload) }));
+    populate(await request('/relay/config', {
+      method: 'POST',
+      body: JSON.stringify({
+        sabUrl: $('#sab-url').value.trim(),
+        sabApiKey: $('#sab-key').value.trim(),
+        maxNzbMegabytes: Number($('#max-size').value),
+        nzbRetentionHours: retentionHours()
+      })
+    }));
     $('#sab-key').value = '';
     $('#save-state').textContent = 'Saved';
-    setNotice('Settings saved.', true);
+    setNotice('Settings saved.', 'good');
     await refreshNzbs();
   } catch (error) {
     $('#save-state').textContent = '';
@@ -132,20 +207,23 @@ async function saveSettings(event) {
 
 async function testSab() {
   const button = $('#test-sab');
+  const result = $('#test-result');
   button.disabled = true;
-  button.textContent = 'Testing…';
-  setNotice('Contacting SABnzbd…', true);
+  result.className = 'test-result';
+  result.textContent = 'Contacting SABnzbd…';
   try {
-    const result = await request('/relay/test-sab', { method: 'POST', body: '{}' });
-    const version = result.version ? ` v${result.version}` : '';
-    setNotice(`SABnzbd connected${version}.`, true);
+    const value = await request('/relay/test-sab', { method: 'POST', body: '{}' });
+    result.className = 'test-result ok';
+    result.textContent = `Connected${value.version ? ` — SABnzbd ${value.version}` : ''}`;
   } catch (error) {
-    setNotice(`SABnzbd test failed: ${error.message}`);
+    result.className = 'test-result bad';
+    result.textContent = error.message;
   } finally {
     button.disabled = false;
-    button.textContent = 'Test SABnzbd';
   }
 }
+
+/* ---------- formatting ---------- */
 
 function shortTime(timestamp) {
   if (!timestamp) return 'Never';
@@ -158,52 +236,78 @@ function formatBytes(bytes) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
+function emptyRow(body, columns, message) {
+  const cell = body.insertRow().insertCell();
+  cell.colSpan = columns;
+  cell.className = 'empty';
+  cell.textContent = message;
+}
+
+/* ---------- activity ---------- */
+
 async function refreshLog() {
   try {
     const { entries } = await request('/relay/audit');
     const body = $('#activity-body');
     body.replaceChildren();
+
+    const succeeded = entries.find(entry => entry.outcome.endsWith('uploaded'));
+    const summary = $('#last-grab');
+    if (succeeded) {
+      summary.hidden = false;
+      $('#last-grab-detail').textContent = `${succeeded.filename || 'NZB'} · ${shortTime(succeeded.timestamp)} · sent to SABnzbd`;
+    } else {
+      summary.hidden = true;
+    }
+
     if (!entries.length) {
-      const row = body.insertRow();
-      const cell = row.insertCell();
-      cell.colSpan = 5;
-      cell.className = 'empty';
-      cell.textContent = 'No grabs this session.';
+      emptyRow(body, 5, 'No grabs this session.');
       return;
     }
     for (const entry of entries) {
       const row = body.insertRow();
-      const values = [shortTime(entry.timestamp), entry.outcome, entry.sourceHost || '—', entry.filename || entry.error || '—', entry.egressIp || '—'];
-      values.forEach((value, index) => {
-        const cell = row.insertCell();
-        cell.textContent = value;
-        if (index === 1) cell.className = entry.outcome.endsWith('uploaded') ? 'outcome-ok' : 'outcome-bad';
-      });
+      row.insertCell().textContent = shortTime(entry.timestamp);
+
+      const outcome = row.insertCell();
+      const ok = entry.outcome.endsWith('uploaded');
+      const state = document.createElement('span');
+      state.className = `state ${ok ? 'ok' : 'bad'}`;
+      state.append(ok ? icon(CHECK) : '', entry.outcome);
+      outcome.append(state);
+
+      row.insertCell().textContent = entry.sourceHost || '—';
+
+      const file = row.insertCell();
+      file.textContent = entry.filename || entry.error || '—';
+      if (entry.bytes) {
+        const size = document.createElement('span');
+        size.className = 'file-meta';
+        size.textContent = formatBytes(entry.bytes);
+        file.append(size);
+      }
+
+      const egress = row.insertCell();
+      egress.className = 'end mono';
+      egress.textContent = entry.egressIp || '—';
     }
   } catch (error) {
     setNotice(error.message);
   }
 }
 
-function archiveEmpty(body) {
-  const row = body.insertRow();
-  const cell = row.insertCell();
-  cell.colSpan = 5;
-  cell.className = 'empty';
-  cell.textContent = 'No saved NZBs.';
-}
+/* ---------- inbox ---------- */
 
 async function pushNzb(item, button) {
   button.disabled = true;
-  button.textContent = 'Pushing…';
+  button.textContent = 'Sending…';
   try {
     const result = await request(`/relay/nzbs/${encodeURIComponent(item.id)}/push`, { method: 'POST', body: '{}' });
-    setNotice(`Sent ${item.filename} to SABnzbd${result.sabJobId ? ` as ${result.sabJobId}` : ''}.`, true);
+    setNotice(`Sent ${item.filename} to SABnzbd${result.sabJobId ? ` as ${result.sabJobId}` : ''}.`, 'good');
     await Promise.all([refreshNzbs(), refreshLog()]);
   } catch (error) {
-    setNotice(`SAB submission failed: ${error.message}`);
+    setNotice(`SABnzbd did not accept it: ${error.message}`);
     button.disabled = false;
-    button.textContent = 'Push to SAB';
+    button.textContent = 'Retry';
   }
 }
 
@@ -212,10 +316,10 @@ async function deleteNzb(item, button) {
   button.disabled = true;
   try {
     await request(`/relay/nzbs/${encodeURIComponent(item.id)}`, { method: 'DELETE' });
-    setNotice(`Deleted ${item.filename}.`, true);
+    setNotice(`Deleted ${item.filename}.`, 'good');
     await refreshNzbs();
   } catch (error) {
-    setNotice(`Could not delete the NZB: ${error.message}`);
+    setNotice(`Could not delete it: ${error.message}`);
     button.disabled = false;
   }
 }
@@ -225,53 +329,76 @@ async function refreshNzbs() {
     const result = await request('/relay/nzbs');
     $('#nzb-folder').textContent = result.directory;
     $('#open-nzb-folder').disabled = !result.canOpenFolder;
+
+    const count = $('#inbox-count');
+    count.textContent = result.items.length;
+    count.hidden = result.items.length === 0;
+
     const body = $('#nzb-body');
     body.replaceChildren();
     if (!result.items.length) {
-      archiveEmpty(body);
+      emptyRow(body, 4, 'No saved NZBs.');
       return;
     }
+
     for (const item of result.items) {
       const row = body.insertRow();
-      row.insertCell().textContent = shortTime(item.createdAt);
 
-      const fileCell = row.insertCell();
+      const file = row.insertCell();
       const name = document.createElement('span');
-      name.className = 'file-main';
+      name.className = 'file-name';
       name.textContent = item.filename;
       name.title = item.filename;
-      const proof = document.createElement('span');
-      proof.className = 'file-meta';
-      proof.textContent = `${item.sourceHost || 'unknown source'} · SHA-256 ${item.sha256.slice(0, 12)}…`;
-      fileCell.append(name, proof);
+      const meta = document.createElement('span');
+      meta.className = 'file-meta';
+      meta.textContent = `${item.sourceHost || 'unknown source'} · ${item.sha256.slice(0, 8)}`;
+      file.append(name, meta);
 
-      row.insertCell().textContent = formatBytes(item.bytes);
-      const submission = row.insertCell();
-      submission.textContent = item.submitCount
-        ? `${shortTime(item.submittedAt)} · ${item.submitCount} attempt${item.submitCount === 1 ? '' : 's'}`
-        : 'Not submitted';
-      if (item.lastSabStatus && (item.lastSabStatus < 200 || item.lastSabStatus >= 300)) submission.className = 'outcome-bad';
+      const size = row.insertCell();
+      size.className = 'num';
+      size.textContent = formatBytes(item.bytes);
 
-      const actions = row.insertCell();
-      const wrapper = document.createElement('div');
-      wrapper.className = 'row-actions';
+      row.insertCell().textContent = shortTime(item.createdAt);
+
+      const last = row.insertCell();
+      last.className = 'end';
+      const actions = document.createElement('div');
+      actions.className = 'row-actions';
+
+      const failed = item.lastSabStatus && (item.lastSabStatus < 200 || item.lastSabStatus >= 300);
+      const state = document.createElement('span');
+      if (!item.submitCount) {
+        state.className = 'state';
+        state.textContent = 'Not sent';
+      } else if (failed) {
+        state.className = 'state bad';
+        state.textContent = 'SAB refused';
+      } else {
+        state.className = 'state ok';
+        state.append(icon(CHECK), 'Sent');
+      }
+
       const push = document.createElement('button');
       push.type = 'button';
-      push.className = 'mini-button';
-      push.textContent = 'Push to SAB';
+      push.className = failed || !item.submitCount ? 'button small primary' : 'button small';
+      push.textContent = failed ? 'Retry' : 'Send to SAB';
       push.addEventListener('click', () => pushNzb(item, push));
+
       const remove = document.createElement('button');
       remove.type = 'button';
-      remove.className = 'mini-button delete-button';
+      remove.className = 'button small danger';
       remove.textContent = 'Delete';
       remove.addEventListener('click', () => deleteNzb(item, remove));
-      wrapper.append(push, remove);
-      actions.append(wrapper);
+
+      actions.append(state, push, remove);
+      last.append(actions);
     }
   } catch (error) {
     setNotice(`Could not load saved NZBs: ${error.message}`);
   }
 }
+
+/* ---------- wiring ---------- */
 
 $('#settings-form').addEventListener('submit', saveSettings);
 $('#check-egress').addEventListener('click', checkEgress);
@@ -284,7 +411,6 @@ $('#retention-unit').addEventListener('change', () => {
 $('#open-nzb-folder').addEventListener('click', async () => {
   try {
     await request('/relay/nzbs/open-folder', { method: 'POST', body: '{}' });
-    setNotice('Opened the saved NZB folder.', true);
   } catch (error) {
     setNotice(error.message);
   }
@@ -300,7 +426,10 @@ $('#copy-key').addEventListener('click', async () => {
 });
 
 setInterval(() => {
-  if (document.visibilityState === 'visible') Promise.all([refreshNzbs(), refreshLog()]);
+  if (document.visibilityState !== 'visible') return;
+  Promise.all([refreshNzbs(), refreshLog()]);
+  if (currentEgress) $('#egress-detail').textContent = `Fresh lookup ${relativeTime(currentEgress.at)}`;
+  renderPrevious();
 }, 10_000);
 
 load();

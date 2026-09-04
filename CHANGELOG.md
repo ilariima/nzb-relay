@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- Rebuild the interface as a macOS utility. A sidebar replaces the single
+  scrolling page, so settings no longer compete for space with the saved-NZB
+  inbox, and the window starts at 900x620 instead of 980x760.
+- Make the observed public IP the primary element of the Status view and record
+  the previous reading beside it, so comparing before and after a VPN change no
+  longer depends on remembering the earlier value. The previous reading is held
+  in memory only, matching the activity log.
+- Follow the system light or dark appearance instead of forcing a dark theme.
+- Show the byte count in the activity list, which was recorded for every grab
+  but never displayed.
+- Replace the application icon. The previous mark combined a document, a
+  download arrow and a pair of nodes in thin outlines, which merged into an
+  unreadable shape at Dock sizes; the new one draws two routes converging into
+  one and is built on the macOS icon grid.
 - Treat a non-API response from SABnzbd as a failed submission. SABnzbd serves its web
   interface with HTTP 200 when the URL or URL base is wrong, and that was recorded as a
   successful upload with an empty job ID, so a grab that never reached SABnzbd looked
