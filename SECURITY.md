@@ -16,8 +16,8 @@ accounts and logs.
 
 - A random bridge key authenticates Prowlarr to the local endpoint.
 - The real SABnzbd key is substituted only on relay-to-SAB requests.
-- The desktop app encrypts the SAB key through Electron `safeStorage`, which uses
-  Keychain on macOS. Its configuration file is mode `0600` in a mode `0700` directory.
+- The SAB key is stored in the configuration file, mode `0600` in a mode `0700`
+  directory. It is not encrypted at rest.
 - The settings API reports only whether a SAB key exists, never its value.
 - Audit errors remove common key/token query parameters.
 - Saved NZBs and sidecar metadata use owner-only permissions. Source download URLs
@@ -25,8 +25,20 @@ accounts and logs.
   unpack password, are retained in the protected sidecar so manual retries behave
   the same as the first submission.
 
-Headless Node mode has no Electron Keychain integration and stores its key in the
-owner-only configuration file. The macOS desktop build uses protected storage.
+Earlier builds encrypted the key through Electron's `safeStorage`, backed by the
+macOS Keychain. That was removed. Because the application is ad-hoc signed, its
+code identity is a hash of the bundle and changes with every release, so macOS
+treated each update as a different program requesting the existing Keychain item
+and challenged the user for a password on launch.
+
+The protection it bought was thin: SABnzbd keeps the same API key in plaintext in
+its own configuration file on the same machine, so encrypting this copy guarded a
+secret already readable a few directories away. Anything running as the user can
+read the key from either file. Desktop and headless mode now behave identically.
+
+Restoring encryption at rest without the repeated password prompt needs a
+Developer ID certificate, which gives the application a stable code identity
+across releases.
 
 ## Network behavior
 

@@ -320,6 +320,7 @@ input.tiny { width: 72px; }
 .control { min-width: 0; }
 .control.inline, .control .inline { display: flex; align-items: center; gap: 8px; }
 .hint { margin-top: 5px; color: var(--faint); font-size: 11px; text-wrap: pretty; }
+.hint.attention { color: var(--bad); }
 .rule { height: 0; margin: 22px 0; border: 0; border-top: 1px solid var(--line); }
 .form-foot { display: flex; align-items: center; gap: 10px; margin-top: 24px; }
 .form-foot .button { margin-left: auto; }

@@ -108,10 +108,10 @@ src/nzb-fetcher.mjs     Bounded fetch, redirect handling, content validation, fi
 src/nzb-archive.mjs     Persistent inbox: metadata sidecars, checksums, retention, retry
 src/sab-client.mjs      SAB URL building, key substitution, multipart addfile, pass-through
 src/egress-checker.mjs  Public-IP lookup and per-grab enforcement
-src/config-store.mjs    Defaults, normalization, bridge-key generation, protected storage
+src/config-store.mjs    Defaults, normalization, bridge-key generation, owner-only storage
 src/audit-log.mjs       In-memory activity ring buffer (200 entries, not persisted)
 src/version.mjs         Single source of version and User-Agent strings
-src/electron-main.mjs   Desktop shell, safeStorage codec, Finder integration
+src/electron-main.mjs   Desktop shell, window lifecycle, Finder integration
 src/main.mjs            Headless entry point
 src/ui/                 Local configuration interface (vanilla JS, no framework)
 test/                   Unit and protocol-level integration tests
@@ -179,6 +179,10 @@ Do not relitigate these without new information:
   first launch still needs *Open Anyway*. Paid signing is a cost decision, not an
   oversight.
 - **The localhost bind is a security boundary, not a default.** See invariant 8.
+- **The SAB key is deliberately not encrypted at rest.** Electron `safeStorage` was
+  removed: an ad-hoc signed app has no stable code identity, so every release made
+  macOS challenge the user for a Keychain password, and SABnzbd stores the same key
+  in plaintext anyway. Do not reintroduce it without Developer ID signing.
 - **The audit log is in-memory and ephemeral by design.** Persisting it would put
   indexer hostnames and egress IPs on disk; that needs a privacy decision first.
 
