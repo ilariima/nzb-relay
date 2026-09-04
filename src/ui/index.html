@@ -44,6 +44,12 @@
         <section class="view" id="view-status">
           <header class="toolbar"><h1>Status</h1></header>
           <div class="body">
+            <div class="banner" id="hold-banner" hidden>
+              <svg class="glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 9v6M14 9v6"/><circle cx="12" cy="12" r="8.6"/></svg>
+              <span><strong>Holding grabs.</strong> NZBs are saved to the inbox and nothing is sent to SABnzbd.</span>
+              <button class="button small" type="button" data-view="inbox" id="hold-banner-link">Open inbox</button>
+            </div>
+
             <div class="panel">
               <div class="egress">
                 <div class="egress-copy">
@@ -162,6 +168,16 @@
                   <div class="control">
                     <input id="sab-key" name="sabApiKey" type="password" placeholder="Leave blank to keep the saved key" autocomplete="off">
                     <p class="hint" id="sab-key-help">Prowlarr never receives this key.</p>
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="grab-mode">When a grab arrives</label>
+                  <div class="control">
+                    <select id="grab-mode">
+                      <option value="send">Send to SABnzbd</option>
+                      <option value="hold">Hold in inbox</option>
+                    </select>
+                    <p class="hint" id="grab-mode-hint">The NZB is fetched, saved, then sent on to SABnzbd.</p>
                   </div>
                 </div>
                 <div class="field">

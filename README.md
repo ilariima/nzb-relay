@@ -179,6 +179,26 @@ The **Saved NZBs** panel lists each file with its indexer host, size, short SHA-
 submission history. From there you can push a saved NZB to SAB again — reading the local
 file, never re-contacting the indexer — delete one, or open the storage folder.
 
+### Holding grabs instead of sending them
+
+**Settings → When a grab arrives** chooses what happens after the NZB is fetched
+and saved:
+
+- **Send to SABnzbd** (default) forwards the bytes immediately.
+- **Hold in inbox** stops after the archive write. Nothing reaches SABnzbd until
+  you press **Send to SAB** on the row yourself.
+
+Holding is useful when you want to look at a release before it downloads, or to
+collect NZBs while SABnzbd is off. The indexer is still contacted once, over the
+relay's route, exactly as in the normal path — holding changes only what happens
+afterwards.
+
+One caveat: with nothing queued in SABnzbd, Prowlarr is told the grab succeeded
+and given a placeholder job id, so anything that later asks SABnzbd about that id
+will not find it. That is fine for grabs made from Prowlarr itself; if Sonarr or
+Radarr track the download through this relay, leave the mode on **Send to
+SABnzbd**.
+
 Retention is configurable in hours or days, with a **Forever** option. The default is
 seven days. Cleanup runs at startup, on save, when the inbox is viewed, and before each
 grab. A manual retry preserves the original category, priority, post-processing, script,
